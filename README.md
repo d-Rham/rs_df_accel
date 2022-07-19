@@ -1,10 +1,16 @@
-Elementary design for a 2D convolution accelerator in VHDL based on the row stationary dataflow architecture.
-Building block for a capstone project.
+Design of a Neural Network Accelerator in VHDL, with support for multiple dataflows and compute kernels.
 
-Uses 3x3 PEs (Processing Elements), each PE contains a Multiply-Accumulate unit and ~1KB register file as an acting scratchpad memory. The current configuration is fixed for 3x3 convolution kernels and parallel convolution of 5 input rows.
+What is a dataflow ? refer to https://people.csail.mit.edu/emer/papers/2017.05.ieee_micro.dnn_dataflow.pdf
 
-This architecture will change and grow as the project progresses, with reconfigurability, support for different kernel and input sizes and dimensions, and hopefully an expansion into a full-fledged CNN accelerator.
+Contains A ~100KB on-chip BRAM global buffer memory, a highly flexible NoC based on microswitches, sourced from: https://synergy.ece.gatech.edu/tools/microswitch-noc/
 
-I will also add further explanation and tcl scripts to generate Vivado and Quartus project files once I figure out how to tcl.
+Uses 4x4 PE Bank (Processing Elements). Each PE contains a DSP-instanced Multiply-Accumulate unit and ~1KB register file as an acting scratchpad memory. The current configuration supports a maximum of 16x16 Convolution Kernels for spatial mapping / Parallel execution (As per weight stationary dataflow) or 4x4 Conv Kernels with 7x7 Input feature maps (As per Row stationary dataflow). Bigger Conv and IFM sizes can be computed simply by tiling them onto the existing resources and/or temporally schedueling them. Matrix Multiplications are also supported.
 
-WIP..
+
+This architecture is intended to be used with an automated mapper/compiler, ideally with design space exploration.
+
+This is the fruit of a capstone project and is still work-in-progress, further explanation will be provided as it progresses. Currently working on: Controller design.
+
+WIP...
+
+

@@ -1,27 +1,11 @@
 --TODO: think of isolating data-feed to each PE and handling everything through programmable memory controller, pushing data differently for different micro-operations
 -- refactored, now think of SIMD execution
+                           
 
 LIBRARY ieee;
 USE ieee.std_logic_1164.all;
 USE ieee.std_logic_arith.all;
-
-
-package pe_bank_metadata IS
-constant kern_dim : integer := 3;
-constant rows : integer := 3;
-constant columns : integer := 3;
-constant size : integer := 8;
-constant cells: integer := 3;
-type input_bus is array((kern_dim*kern_dim-(kern_dim-1)*(kern_dim-1))-1 DOWNTO 0) of std_logic_vector(size-1 DOWNTO 0);
-type weight_bus is array(rows-1 DOWNTO 0) of std_logic_vector(size-1 DOWNTO 0);
-type output_bus is array (columns-1 DOWNTO 0) of std_logic_vector(size-1 DOWNTO 0);
-end package pe_bank_metadata;
-
-
-LIBRARY ieee;
-USE ieee.std_logic_1164.all;
-USE ieee.std_logic_arith.all;
-USE work.pe_bank_metadata.all;
+USE work.rs_df_config.all;
 
 ENTITY pe_bank IS
    GENERIC( 
@@ -29,11 +13,11 @@ ENTITY pe_bank IS
       size: integer := 8
    );
    PORT( 
-      stat_in    : IN weight_bus;
-      conv_in    : IN input_bus;
+      stat_in    : IN pe_net;
+      conv_in    : IN pe_net;
       data_av: IN std_logic_vector(1 DOWNTO 0);
       clk   : IN  std_logic;
-      col_out   : OUT output_bus
+      psum_out   : OUT pe_net
    );
 
 -- Declarations
@@ -73,14 +57,21 @@ ARCHITECTURE struct OF pe_bank IS
 
 BEGIN
    -- Instance port mappings.
-pe0: pe PORT MAP (data_av, clk, interm(0),stat_in(0), conv_in(0), col_out(0));
-pe1: pe PORT MAP (data_av, clk, interm(1),stat_in(1), conv_in(1), interm(0));
-pe2: pe PORT MAP (data_av, clk, x"00", stat_in(2), conv_in(2), interm(1));
-pe3: pe PORT MAP (data_av, clk, interm(2), stat_in(0), conv_in(1), col_out(1));
-pe4: pe PORT MAP (data_av, clk, interm(3), stat_in(1), conv_in(2), interm(2));
-pe5: pe PORT MAP (data_av, clk, x"00", stat_in(2), conv_in(3), interm(3));
-pe6: pe PORT MAP (data_av, clk, interm(4), stat_in(0), conv_in(2), col_out(2));
-pe7: pe PORT MAP (data_av, clk, interm(5), stat_in(1), conv_in(3), interm(4));
-pe8: pe PORT MAP (data_av, clk, x"00", stat_in(2), conv_in(4), interm(5));
+pe0: pe PORT MAP (data_av, clk, x"00",stat_in(0), conv_in(0), psum_out(0));
+pe1: pe PORT MAP (data_av, clk, x"00",stat_in(1), conv_in(1), psum_out(1));
+pe2: pe PORT MAP (data_av, clk, x"00", stat_in(2), conv_in(2), psum_out(2));
+pe3: pe PORT MAP (data_av, clk, x"00", stat_in(3), conv_in(3), psum_out(3));
+pe4: pe PORT MAP (data_av, clk, x"00", stat_in(4), conv_in(4), psum_out(4));
+pe5: pe PORT MAP (data_av, clk, x"00", stat_in(5), conv_in(5), psum_out(5));
+pe6: pe PORT MAP (data_av, clk, x"00", stat_in(6), conv_in(6), psum_out(6));
+pe7: pe PORT MAP (data_av, clk, x"00", stat_in(7), conv_in(7), psum_out(7));
+pe8: pe PORT MAP (data_av, clk, x"00", stat_in(8), conv_in(8), psum_out(8));
+pe9: pe PORT MAP (data_av, clk, x"00",stat_in(9), conv_in(9), psum_out(9));
+pe10: pe PORT MAP (data_av, clk, x"00",stat_in(10), conv_in(10), psum_out(10));
+pe11: pe PORT MAP (data_av, clk, x"00",stat_in(11), conv_in(11), psum_out(11));
+pe12: pe PORT MAP (data_av, clk, x"00",stat_in(12), conv_in(12), psum_out(12));
+pe13: pe PORT MAP (data_av, clk, x"00",stat_in(13), conv_in(13), psum_out(13));
+pe14: pe PORT MAP (data_av, clk, x"00",stat_in(14), conv_in(14), psum_out(14));
+pe15: pe PORT MAP (data_av, clk, x"00",stat_in(15), conv_in(15), psum_out(15));
 
 END struct;

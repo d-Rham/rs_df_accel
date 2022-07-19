@@ -23,6 +23,7 @@ library IEEE;
 USE IEEE.STD_LOGIC_1164.ALL;
 --USE IEEE.STD_LOGIC_ARITH.ALL;
 USE IEEE.numeric_std.ALL;
+USE work.rs_df_config.all;
 
 -- Uncomment the following library declaration if using
 -- arithmetic functions with Signed or Unsigned values
@@ -34,9 +35,6 @@ USE IEEE.numeric_std.ALL;
 --use UNISIM.VComponents.all;
 
 entity pe_control is
- generic(
- sel : integer := 9
- );
  Port ( 
         clk: in std_logic;
         data_av: in std_logic_vector(1 DOWNTO 0);
@@ -45,16 +43,16 @@ entity pe_control is
         write_a: out std_logic;
         read: out std_logic;
         reset: out std_logic;
-        flush_out: out std_logic;
-        addr_m1: out std_logic_vector(sel-1 DOWNTO 0);
-        addr_m2: out std_logic_vector(sel-1 DOWNTO 0);
-        addr_a: out std_logic_vector(sel-3 DOWNTO 0)
+        flush: out std_logic;
+        addr_m1: out std_logic_vector(rf_sel-1 DOWNTO 0);
+        addr_m2: out std_logic_vector(rf_sel-1 DOWNTO 0);
+        addr_a: out std_logic_vector(rf_sel-1 DOWNTO 0)
  
  );
 end pe_control;
 
 architecture finite of pe_control is
-type statetype is (idle,load, load_sr, comp, flush);
+type statetype is (idle,load, load_sr, comp, flushing);
 signal cur_state, nx_state : statetype := idle;
 signal offset : integer := 0;
 signal win_count : integer := 0;
@@ -80,11 +78,11 @@ case cur_state is
         end if;
     when comp => 
         if (win_count + 1) = win_size then
-            nx_state <= flush;
+            nx_state <= flushing;
         else 
             nx_state <= comp;        
         end if;
-     when flush => 
+     when flushing => 
         if data_av = "01" then 
             nx_state <= load;
         elsif data_av = "10" then
@@ -107,7 +105,7 @@ read <= '0' WHEN (cur_state = idle or cur_state = load or cur_state = load_sr) e
 reset <= '1' WHEN (cur_state = idle or cur_state = load or cur_state = load_sr) else '0';
 write_m1 <= '1' WHEN (cur_state = load) else '0';
 write_m2 <= '1' WHEN (cur_state = load or cur_state = load_sr) else '0';
-write_a <= '1' WHEN (cur_state = comp or cur_state= flush) else '0';
+write_a <= '1' WHEN (cur_state = comp or cur_state= flushing) else '0';
 addr_m1 <= std_logic_vector(to_unsigned(win_count,addr_m2'length));
 addr_m2 <= std_logic_vector(to_unsigned((win_count + offset),addr_m2'length));
 addr_a <= (others => '0');
@@ -120,15 +118,15 @@ begin
         win_count <= win_count + 1;
  elsif((cur_state = load and nx_state=comp) or (cur_state = load_sr and nx_state = comp)) then
         win_count <= 0;
- elsif (cur_state = comp and nx_state=flush) then
+ elsif (cur_state = comp and nx_state=flushing) then
         offset <= offset + 1; 
  elsif (cur_state = idle and nx_state = load) then
     offset <= 0; 
  end if; 
- if  (cur_state = flush) then
-       flush_out <= '1';
+ if  (cur_state = flushing) then
+       flush <= '1';
  else
-       flush_out <= '0';
+       flush <= '0';
  end if;
  end if;
 end process unclocked_change;

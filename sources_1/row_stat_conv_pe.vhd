@@ -3,14 +3,9 @@
 LIBRARY ieee;
 USE ieee.std_logic_1164.all;
 USE ieee.std_logic_arith.all;
-
+USE work.rs_df_config.ALL;
 
 ENTITY pe IS
-   GENERIC( 
-      cells :integer := 3;
-      size : integer := 8;
-      sel : integer := 9
-   );
    PORT( 
       data_av : IN std_logic_vector(1 DOWNTO 0);
       m1_in    : IN     std_logic_vector (size-1 DOWNTO 0);
@@ -18,6 +13,7 @@ ENTITY pe IS
       p_psum    : IN     std_logic_vector (size-1 DOWNTO 0);
       clk   : IN     std_logic;
       row   : OUT    std_logic_vector (size-1 DOWNTO 0)
+      --row_hor   : OUT    std_logic_vector (size-1 DOWNTO 0)   
    );
 
 -- Declarations
@@ -33,23 +29,8 @@ ARCHITECTURE struct OF pe IS
    -- Architecture declarations
 
    -- Internal signal declarations
-   SIGNAL w_in : std_logic_vector(size-1 DOWNTO 0) := (others => '0');
-   SIGNAL act_in : std_logic_vector(size-1 DOWNTO 0) := (others => '0');
-   SIGNAL accum_in: std_logic_vector(size-1 DOWNTO 0) := (others => '0');
-   SIGNAL psum: std_logic_vector(size-1 DOWNTO 0) := (others => '0');
-   SIGNAL write_m1: std_logic;
-   SIGNAL write_m2: std_logic;
-   SIGNAL write_a: std_logic;
-   SIGNAL read: std_logic;
-   SIGNAL reset: std_logic;
-   SIGNAL flush_out:  std_logic;
-   SIGNAL addr_m1:  std_logic_vector(sel-1 DOWNTO 0);
-   SIGNAL addr_m2:  std_logic_vector(sel-1 DOWNTO 0);
-   SIGNAL addr_a:  std_logic_vector(sel-3 DOWNTO 0);
-    
-    
-   -- Component Declarations
-   COMPONENT mac
+   
+      COMPONENT mac
    GENERIC (
       size : integer := 8
    );
@@ -62,28 +43,28 @@ ARCHITECTURE struct OF pe IS
    );
    END COMPONENT;
    
-   COMPONENT reg_file
-    GENERIC( size: integer := 8;
-             sel : integer := 9;
-             cells: integer := 2**9 - 2**6
-             );
-    PORT(
-    reset : IN std_logic;
-    read : IN std_logic;
-    write: IN std_logic;
-    clk: IN std_logic;
-    in_m: IN std_logic_vector(size-1 DOWNTO 0);
-    out_m: OUT std_logic_vector(size-1 DOWNTO 0);
-    addr: IN std_logic_vector(sel-1 DOWNTO 0)
-        );
-   END COMPONENT;
-
+   
+   SIGNAL w_in : std_logic_vector(size-1 DOWNTO 0) := (others => '0');
+   SIGNAL act_in : std_logic_vector(size-1 DOWNTO 0) := (others => '0');
+   SIGNAL accum_in: std_logic_vector(size-1 DOWNTO 0) := (others => '0');
+   SIGNAL psum: std_logic_vector(size-1 DOWNTO 0) := (others => '0');
+   --SIGNAL p_psum: std_logic_vector(size-1 DOWNTO 0) := (others => '0');
+   SIGNAL write_m1: std_logic;
+   SIGNAL write_m2: std_logic;
+   SIGNAL write_a: std_logic;
+   SIGNAL read: std_logic;
+   SIGNAL reset: std_logic;
+   SIGNAL flush:  std_logic;
+   SIGNAL flush_out: std_logic_vector(size-1 DOWNTO 0);
+   SIGNAL addr_m1:  std_logic_vector(rf_sel-1 DOWNTO 0);
+   SIGNAL addr_m2:  std_logic_vector(rf_sel-1 DOWNTO 0);
+   SIGNAL addr_a:  std_logic_vector(rf_sel-1 DOWNTO 0);
+   SIGNAL addr_acc_flush : std_logic_vector(rf_sel-1 DOWNTO 0); 
+    
+   -- Component Declarations
 
 
    COMPONENT pe_control
-   generic(
- sel : integer := 9
- );
  Port ( 
         clk: in std_logic;
         data_av: in std_logic_vector(1 DOWNTO 0);
@@ -92,14 +73,36 @@ ARCHITECTURE struct OF pe IS
         write_a: out std_logic;
         read: out std_logic;
         reset: out std_logic;
-        flush_out: out std_logic;
-        addr_m1: out std_logic_vector(sel-1 DOWNTO 0);
-        addr_m2: out std_logic_vector(sel-1 DOWNTO 0);
-        addr_a: out std_logic_vector(sel-3 DOWNTO 0)
+        flush: out std_logic;
+        addr_m1: out std_logic_vector(rf_sel-1 DOWNTO 0);
+        addr_m2: out std_logic_vector(rf_sel-1 DOWNTO 0);
+        addr_a: out std_logic_vector(rf_sel-1 DOWNTO 0)
  
  );
  END COMPONENT;
 
+Component pe_mem_scratch 
+  Port (
+   SIGNAL w_in : IN std_logic_vector(size-1 DOWNTO 0) ;
+   SIGNAL act_in : IN std_logic_vector(size-1 DOWNTO 0);
+   SIGNAL accum_in: IN std_logic_vector(size-1 DOWNTO 0);
+   SIGNAL accum_out: OUT std_logic_vector(size-1 DOWNTO 0);
+   SIGNAL flush_out: OUT std_logic_vector(size-1 DOWNTO 0);
+   SIGNAL w_out : OUT std_logic_vector(size-1 DOWNTO 0) ;
+   SIGNAL act_out : OUT std_logic_vector(size-1 DOWNTO 0);
+   SIGNAL reset: IN std_logic;
+   SIGNAL read: IN std_logic;
+   SIGNAL write_in: IN std_logic;
+   SIGNAL write_w: IN std_logic;
+   SIGNAL write_acc: IN std_logic;
+   SIGNAL clk: IN std_logic ;
+   SIGNAL flush: IN std_logic;
+   SIGNAL addr_m1: IN std_logic_vector(rf_sel-1 DOWNTO 0);
+   SIGNAL addr_m2: IN std_logic_vector(rf_sel-1 DOWNTO 0);
+   SIGNAL addr_acc: IN std_logic_vector(rf_sel-1 DOWNTO 0);
+   SIGNAL addr_acc_flush: IN std_logic_vector(rf_sel-1 DOWNTO 0)
+   );
+end component;
 
    -- Optional embedded configurations
     
@@ -107,6 +110,31 @@ ARCHITECTURE struct OF pe IS
 
 BEGIN
    -- Instance port mappings.
+  
+  reg: pe_mem_scratch
+  PORT MAP(
+  clk => clk,
+  w_in => m1_in,
+  w_out => w_in,
+  addr_m1 => addr_m1,
+  write_w => write_m1,
+  read => read,
+  reset => reset,
+  act_in => m2_in,
+  act_out => act_in,
+  addr_m2 => addr_m2,
+  write_in => write_m2,
+  accum_in => psum,
+  accum_out => accum_in,
+  addr_acc => addr_a,
+  write_acc => write_a,
+  addr_acc_flush => addr_acc_flush,
+  flush => flush,
+  flush_out => flush_out
+  
+  
+  );
+  
    U1 : mac
       GENERIC MAP (
          size => 8
@@ -117,56 +145,9 @@ BEGIN
          acc => accum_in,
          pout  => psum
       );
-   reg1 : reg_file
-      GENERIC MAP (
-         size => 8,
-         sel => 9,
-         cells => 2**9 - 2**6
-      )
-      PORT MAP (
-         clk => clk,
-         in_m => m1_in,
-         out_m => w_in,
-         addr => addr_m1,
-         write => write_m1,
-         read => read,
-         reset => reset
-      ); 
-   reg2 : reg_file
-      GENERIC MAP (
-         size => 8,
-         sel => 9,
-         cells => 2**9 - 2**6
-      )
-      PORT MAP (
-         clk => clk,
-         in_m => m2_in,
-         out_m => act_in,
-         addr => addr_m2,
-         write => write_m2,
-         read => read,
-         reset => reset
-      ); 
-   rega : reg_file
-      GENERIC MAP (
-         size => 8,
-         sel => 7,
-         cells => 2**7
-      )
-      PORT MAP (
-         clk => clk,
-         in_m => psum,
-         out_m => accum_in,
-         addr => addr_a,
-         write => write_a,
-         read => read,
-         reset => reset
-      );   
+ 
       
    cont: pe_control
-        GENERIC MAP (
-        sel => 9 
-        )
         PORT MAP (
         clk => clk,
         data_av => data_av,
@@ -175,11 +156,14 @@ BEGIN
         write_a => write_a,
         read => read,
         reset => reset,
-        flush_out => flush_out,
+        flush => flush,
         addr_m1 => addr_m1,
         addr_m2 => addr_m2,
         addr_a => addr_a
         );                             
- row <= ( signed(accum_in) + signed(p_psum)) when (flush_out = '1') else (others => '0');
+ -- signed(p_psum) +
+ row <= (signed(p_psum) +signed(flush_out)) when (flush = '1') else (others => '0');
+ --row_ver <= row when (ver_sel = '1') else (others => '0');
+-- row_hor <= row when (hor_sel = '1') else (others => '0');
                       
 END struct;
